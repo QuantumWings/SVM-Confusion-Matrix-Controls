@@ -1,0 +1,795 @@
+<html><head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.18.2/plotly.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.5.0/math.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+body {
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #F0F4F8;
+    color: #2C3E50;
+    height: 100vh;
+    overflow: hidden;
+}
+.container {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+}
+#controls {
+    flex: 0 0 350px;
+    padding: 20px;
+    background-color: #FFFFFF;
+    box-shadow: 0 0 20px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow-y: auto;
+}
+#visualization {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+}
+#plot {
+    flex: 1;
+    background-color: #FFFFFF;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.05);
+}
+#metrics {
+    padding: 15px;
+    background-color: #E5E9F0;
+    font-size: 18px;
+    font-weight: 500;
+    text-align: center;
+    border-radius: 8px;
+    margin-top: 20px;
+    color: #4C566A;
+}
+.slider-container, .switch-container {
+    margin-bottom: 15px;
+}
+h2 {
+    color: #5E81AC;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+}
+label {
+    display: block;
+    margin-bottom: 5px;
+    color: #4C566A;
+    font-weight: 500;
+    font-size: 0.9em;
+}
+input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 5px;
+    border-radius: 5px;
+    background: #D8DEE9;
+    outline: none;
+    opacity: 0.7;
+    transition: opacity .2s;
+}
+input[type="range"]:hover {
+    opacity: 1;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #81A1C1;
+    cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #81A1C1;
+    cursor: pointer;
+}
+select {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+    border: 1px solid #E5E9F0;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #3B4252;
+    background-color: #ECEFF4;
+    transition: border-color 0.3s;
+}
+select:focus {
+    border-color: #81A1C1;
+    outline: none;
+}
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #D8DEE9;
+    transition: .4s;
+    border-radius: 24px;
+}
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+input:checked + .slider {
+    background-color: #88C0D0;
+}
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+.gadget {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #E5E9F0;
+    border-radius: 8px;
+}
+.gadget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+.gadget-title {
+    font-weight: bold;
+    color: #4C566A;
+}
+.gadget-toggle {
+    color: #5E81AC;
+}
+.gadget-content {
+    display: none;
+    transition: max-height 0.3s ease-out;
+    overflow: hidden;
+}
+.gadget-content.active {
+    display: block;
+}
+button {
+    background-color: #5E81AC;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+button:hover {
+    background-color: #81A1C1;
+}
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+    #controls {
+        order: 2;
+        flex: 0 0 auto;
+    }
+    #visualization {
+        order: 1;
+    }
+}
+
+@keyframes breathe {
+    0% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.5);
+    }
+    100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+}
+
+.breathing-point {
+    animation: breathe 2s infinite ease-in-out;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <div id="controls">
+        <h2>SVM 混淆矩陣控制器</h2>
+        <div class="gadget">
+            <div class="gadget-header">
+                <span class="gadget-title">矩陣參數</span>
+                <span class="gadget-toggle">▼</span>
+            </div>
+            <div class="gadget-content">
+                <div class="slider-container">
+                    <label for="tp">真陽性 (TP): <span id="tp-value"></span></label>
+                    <input type="range" id="tp" min="0" max="1000" value="500">
+                </div>
+                <div class="slider-container">
+                    <label for="tn">真陰性 (TN): <span id="tn-value"></span></label>
+                    <input type="range" id="tn" min="0" max="1000" value="500">
+                </div>
+                <div class="slider-container">
+                    <label for="fp">偽陽性 (FP): <span id="fp-value"></span></label>
+                    <input type="range" id="fp" min="0" max="500" value="250">
+                </div>
+                <div class="slider-container">
+                    <label for="fn">偽陰性 (FN): <span id="fn-value"></span></label>
+                    <input type="range" id="fn" min="0" max="500" value="250">
+                </div>
+            </div>
+        </div>
+        
+        <div class="gadget">
+            <div class="gadget-header">
+                <span class="gadget-title">度量指標與決策邊界</span>
+                <span class="gadget-toggle">▼</span>
+            </div>
+            <div class="gadget-content">
+                <div class="slider-container">
+                    <label for="metric">度量指標:</label>
+                    <select id="metric">
+                        <option value="accuracy">準確率</option>
+                        <option value="precision">精確率</option>
+                        <option value="recall">召回率</option>
+                        <option value="specificity">特異度</option>
+                        <option value="f1">F1 分數</option>
+                        <option value="fpr">偽陽性率</option>
+                        <option value="fnr">偽陰性率</option>
+                        <option value="npv">陰性預測值</option>
+                        <option value="lrp">陽性似然比</option>
+                        <option value="lrn">陰性似然比</option>
+                        <option value="dor">診斷優勢比</option>
+                    </select>
+                </div>
+                <div class="switch-container">
+                    <label for="showBoundary">顯示決策邊界:</label>
+                    <label class="switch">
+                        <input type="checkbox" id="showBoundary" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="gadget">
+            <div class="gadget-header">
+                <span class="gadget-title">顏色自訂</span>
+                <span class="gadget-toggle">▼</span>
+            </div>
+            <div class="gadget-content">
+                <label for="class1Color">類別 1 顏色:</label>
+                <input type="color" id="class1Color" value="#5E81AC">
+                <label for="class2Color">類別 -1 顏色:</label>
+                <input type="color" id="class2Color" value="#BF616A">
+                <button id="applyColors">應用顏色</button>
+            </div>
+        </div>
+        
+        <div class="gadget">
+            <div class="gadget-header">
+                <span class="gadget-title">動畫控制</span>
+                <span class="gadget-toggle">▼</span>
+            </div>
+            <div class="gadget-content">
+                <button id="animateRotation">啟動旋轉動畫</button>
+                <button id="stopAnimation">停止動畫</button>
+            </div>
+        </div>
+        
+        <div class="gadget">
+            <div class="gadget-header">
+                <span class="gadget-title">資料生成</span>
+                <span class="gadget-toggle">▼</span>
+            </div>
+            <div class="gadget-content">
+                <label for="dataPoints">資料點數量:</label>
+                <input type="number" id="dataPoints" min="100" max="5000" value="1000">
+                <button id="regenerateData">重新生成資料</button>
+            </div>
+        </div>
+        
+        <div class="gadget">
+            <div class="gadget-header">
+                <span class="gadget-title">支持向量強調</span>
+                <span class="gadget-toggle">▼</span>
+            </div>
+            <div class="gadget-content">
+                <label for="svHighlight">強調支持向量:</label>
+                <input type="checkbox" id="svHighlight" checked>
+                <label for="svSize">支持向量大小:</label>
+                <input type="range" id="svSize" min="4" max="20" value="8">
+            </div>
+        </div>
+    </div>
+    <div id="visualization">
+        <div id="plot"></div>
+        <div id="metrics"></div>
+    </div>
+</div>
+
+<script>
+class ConfusionMatrixModel {
+    constructor() {
+        this.tp = 500;
+        this.tn = 500;
+        this.fp = 250;
+        this.fn = 250;
+        this.metric = 'accuracy';
+        this.showBoundary = true;
+        this.class1Color = '#5E81AC';
+        this.class2Color = '#BF616A';
+        this.dataPoints = 1000;
+        this.svHighlight = true;
+        this.svSize = 8;
+    }
+
+    updateValues(tp, tn, fp, fn, metric, showBoundary) {
+        this.tp = tp;
+        this.tn = tn;
+        this.fp = fp;
+        this.fn = fn;
+        this.metric = metric;
+        this.showBoundary = showBoundary;
+    }
+
+    generateData() {
+        const data = [];
+        const totalPoints = this.dataPoints;
+        const tpPoints = Math.floor((this.tp / (this.tp + this.tn + this.fp + this.fn)) * totalPoints);
+        const tnPoints = Math.floor((this.tn / (this.tp + this.tn + this.fp + this.fn)) * totalPoints);
+        const fpPoints = Math.floor((this.fp / (this.tp + this.tn + this.fp + this.fn)) * totalPoints);
+        const fnPoints = totalPoints - tpPoints - tnPoints - fpPoints;
+
+        for (let i = 0; i < tpPoints; i++) data.push({x: Math.random(), y: Math.random(), z: Math.random(), class: 1});
+        for (let i = 0; i < tnPoints; i++) data.push({x: Math.random(), y: Math.random(), z: Math.random(), class: -1});
+        for (let i = 0; i < fpPoints; i++) data.push({x: Math.random(), y: Math.random(), z: Math.random(), class: -1});
+        for (let i = 0; i < fnPoints; i++) data.push({x: Math.random(), y: Math.random(), z: Math.random(), class: 1});
+        return data;
+    }
+
+    calculateMetric() {
+        switch (this.metric) {
+            case 'accuracy':
+                return (this.tp + this.tn) / (this.tp + this.tn + this.fp + this.fn);
+            case 'precision':
+                return this.tp / (this.tp + this.fp);
+            case 'recall':
+                return this.tp / (this.tp + this.fn);
+            case 'specificity':
+                return this.tn / (this.tn + this.fp);
+            case 'f1':
+                const precision = this.tp / (this.tp + this.fp);
+                const recall = this.tp / (this.tp + this.fn);
+                return 2 * (precision * recall) / (precision + recall);
+            case 'fpr':
+                return this.fp / (this.fp + this.tn);
+            case 'fnr':
+                return this.fn / (this.fn + this.tp);
+            case 'npv':
+                return this.tn / (this.tn + this.fn);
+            case 'lrp':
+                return (this.tp / (this.tp + this.fn)) / (this.fp / (this.fp + this.tn));
+            case 'lrn':
+                return (this.fn / (this.fn + this.tp)) / (this.tn / (this.tn + this.fp));
+            case 'dor':
+                return (this.tp * this.tn) / (this.fp * this.fn);
+        }
+    }
+}
+
+class ConfusionMatrixView {
+    constructor() {
+        this.tpSlider = document.getElementById('tp');
+        this.tnSlider = document.getElementById('tn');
+        this.fpSlider = document.getElementById('fp');
+        this.fnSlider = document.getElementById('fn');
+        this.metricSelect = document.getElementById('metric');
+        this.showBoundarySwitch = document.getElementById('showBoundary');
+        this.plot = document.getElementById('plot');
+        this.metricsDiv = document.getElementById('metrics');
+        this.class1ColorPicker = document.getElementById('class1Color');
+        this.class2ColorPicker = document.getElementById('class2Color');
+        this.applyColorsButton = document.getElementById('applyColors');
+        this.animateRotationButton = document.getElementById('animateRotation');
+        this.stopAnimationButton = document.getElementById('stopAnimation');
+        this.regenerateDataButton = document.getElementById('regenerateData');
+        this.dataPointsInput = document.getElementById('dataPoints');
+        this.svHighlightCheckbox = document.getElementById('svHighlight');
+        this.svSizeSlider = document.getElementById('svSize');
+
+        document.querySelectorAll('.gadget-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const content = header.nextElementSibling;
+                content.classList.toggle('active');
+                header.querySelector('.gadget-toggle').textContent = content.classList.contains('active') ? '▲' : '▼';
+            });
+        });
+    }
+
+    bindUpdateEvent(handler) {
+        const update = () => {
+            handler(
+                parseInt(this.tpSlider.value),
+                parseInt(this.tnSlider.value),
+                parseInt(this.fpSlider.value),
+                parseInt(this.fnSlider.value),
+                this.metricSelect.value,
+                this.showBoundarySwitch.checked
+            );
+        };
+
+        this.tpSlider.addEventListener('input', update);
+        this.tnSlider.addEventListener('input', update);
+        this.fpSlider.addEventListener('input', update);
+        this.fnSlider.addEventListener('input', update);
+        this.metricSelect.addEventListener('change', update);
+        this.showBoundarySwitch.addEventListener('change', update);
+    }
+
+    bindColorUpdateEvent(handler) {
+        this.applyColorsButton.addEventListener('click', () => {
+            handler(this.class1ColorPicker.value, this.class2ColorPicker.value);
+        });
+    }
+
+    bindAnimationEvents(startHandler, stopHandler) {
+        this.animateRotationButton.addEventListener('click', startHandler);
+        this.stopAnimationButton.addEventListener('click', stopHandler);
+    }
+
+    bindRegenerateDataEvent(handler) {
+        this.regenerateDataButton.addEventListener('click', () => {
+            handler(parseInt(this.dataPointsInput.value));
+        });
+    }
+
+    bindSVHighlightEvent(handler) {
+        this.svHighlightCheckbox.addEventListener('change', () => {
+            handler(this.svHighlightCheckbox.checked, parseInt(this.svSizeSlider.value));
+        });
+        this.svSizeSlider.addEventListener('input', () => {
+            handler(this.svHighlightCheckbox.checked, parseInt(this.svSizeSlider.value));
+        });
+    }
+
+    updateSliderValue(id) {
+        document.getElementById(`${id}-value`).textContent = document.getElementById(id).value;
+    }
+
+    updateMetrics(metric, value) {
+        this.metricsDiv.textContent = `${metric.toUpperCase()}: ${value.toFixed(4)}`;
+    }
+
+    plotData(data, svm, model) {
+        const getSupportVectors = (data, svm) => {
+            const margin = 0.05;
+            return data.filter(d => {
+                const distance = Math.abs(svm.w[0] * d.x + svm.w[1] * d.y + svm.w[2] * d.z + svm.b) / 
+                                 Math.sqrt(svm.w[0]**2 + svm.w[1]**2 + svm.w[2]**2);
+                return distance < margin;
+            });
+        };
+
+        const supportVectors = getSupportVectors(data, svm);
+
+        const trace1 = {
+            x: data.filter(d => d.class === 1).map(d => d.x),
+            y: data.filter(d => d.class === 1).map(d => d.y),
+            z: data.filter(d => d.class === 1).map(d => d.z),
+            mode: 'markers',
+            type: 'scatter3d',
+            marker: {
+                color: model.class1Color,
+                size: 4,
+                opacity: 0.8
+            },
+            name: '類別 1'
+        };
+
+        const trace2 = {
+            x: data.filter(d => d.class === -1).map(d => d.x),
+            y: data.filter(d => d.class === -1).map(d => d.y),
+            z: data.filter(d => d.class === -1).map(d => d.z),
+            mode: 'markers',
+            type: 'scatter3d',
+            marker: {
+                color: model.class2Color,
+                size: 4,
+                opacity: 0.8
+            },
+            name: '類別 -1'
+        };
+
+        const traces = [trace1, trace2];
+
+        if (model.svHighlight) {
+            const trace3 = {
+                x: supportVectors.map(d => d.x),
+                y: supportVectors.map(d => d.y),
+                z: supportVectors.map(d => d.z),
+                mode: 'markers',
+                type: 'scatter3d',
+                marker: {
+                    color: '#EBCB8B',
+                    size: model.svSize,
+                    symbol: 'star',
+                    opacity: [0.5, 1],
+                    line: {
+                        color: '#D08770',
+                        width: 1
+                    }
+                },
+                name: '支持向量'
+            };
+            traces.push(trace3);
+        }
+
+        if (model.showBoundary) {
+            const xRange = math.range(0, 1, 0.05).toArray();
+            const yRange = math.range(0, 1, 0.05).toArray();
+            const planePoints = [];
+            
+            xRange.forEach(x => {
+                yRange.forEach(y => {
+                    const z = -(svm.w[0] * x + svm.w[1] * y + svm.b) / svm.w[2];
+                    planePoints.push({x, y, z});
+                });
+            });
+
+            const trace4 = {
+                x: planePoints.map(p => p.x),
+                y: planePoints.map(p => p.y),
+                z: planePoints.map(p => p.z),
+                opacity: 0.6,
+                type: 'mesh3d',
+                color: '#88C0D0',
+                name: 'Decision Boundary'
+            };
+
+            traces.push(trace4);
+        }
+
+        const layout = {
+            scene: {
+                xaxis: {title: 'X', gridcolor: "#E5E9F0"},
+                yaxis: {title: 'Y', gridcolor: "#E5E9F0"},
+                zaxis: {title: 'Z', gridcolor: "#E5E9F0"},
+                camera: {
+                    eye: {x: 1.5, y: 1.5, z: 1.5}
+                },
+                aspectmode: 'cube'
+            },
+            title: {
+                text: '3D 支持向量機視覺化',
+                font: {
+                    family: 'Roboto, sans-serif',
+                    size: 24,
+                    color: '#5E81AC'
+                }
+            },
+            margin: {l: 0, r: 0, b: 0, t: 40},
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            legend: {
+                x: 0,
+                y: 1,
+                bgcolor: 'rgba(255,255,255,0.6)',
+                bordercolor: '#E5E9F0',
+                borderwidth: 1
+            }
+        };
+
+        const config = {
+            responsive: true,
+            displayModeBar: false
+        };
+
+        Plotly.newPlot(this.plot, traces, layout, config);
+
+        if (model.svHighlight) {
+            const breathingAnimation = {
+                data: [
+                    {},
+                    {},
+                    {
+                        marker: {
+                            size: [
+                                {
+                                    array: new Array(supportVectors.length).fill(model.svSize),
+                                    frame: 0,
+                                    name: 'Start'
+                                },
+                                {
+                                    array: new Array(supportVectors.length).fill(model.svSize * 1.5),
+                                    frame: 15,
+                                    name: 'Middle'
+                                },
+                                {
+                                    array: new Array(supportVectors.length).fill(model.svSize),
+                                    frame: 30,
+                                    name: 'End'
+                                }
+                            ],
+                            opacity: [
+                                {
+                                    array: new Array(supportVectors.length).fill(0.5),
+                                    frame: 0,
+                                    name: 'Start'
+                                },
+                                {
+                                    array: new Array(supportVectors.length).fill(1),
+                                    frame: 15,
+                                    name: 'Middle'
+                                },
+                                {
+                                    array: new Array(supportVectors.length).fill(0.5),
+                                    frame: 30,
+                                    name: 'End'
+                                }
+                            ]
+                        }
+                    }
+                ],
+                traces: [2],
+                frames: [],
+                layout: {},
+                config: {duration: 2000, redraw: false},
+                transition: {duration: 2000, easing: 'cubic-in-out'}
+            };
+
+            Plotly.animate(this.plot, breathingAnimation, {
+                frame: {duration: 2000, redraw: false},
+                transition: {duration: 2000},
+                mode: 'afterall'
+            });
+        }
+    }
+}
+
+class ConfusionMatrixController {
+    constructor(model, view) {
+        this.model = model;
+        this.view = view;
+
+        this.view.bindUpdateEvent(this.handleUpdate.bind(this));
+        this.view.bindColorUpdateEvent(this.handleColorUpdate.bind(this));
+        this.view.bindAnimationEvents(this.startAnimation.bind(this), this.stopAnimation.bind(this));
+        this.view.bindRegenerateDataEvent(this.handleRegenerateData.bind(this));
+        this.view.bindSVHighlightEvent(this.handleSVHighlight.bind(this));
+
+        this.updateView();
+    }
+
+    handleUpdate(tp, tn, fp, fn, metric, showBoundary) {
+        this.model.updateValues(tp, tn, fp, fn, metric, showBoundary);
+        this.updateView();
+    }
+
+    handleColorUpdate(class1Color, class2Color) {
+        this.model.class1Color = class1Color;
+        this.model.class2Color = class2Color;
+        this.updateView();
+    }
+
+    handleRegenerateData(dataPoints) {
+        this.model.dataPoints = dataPoints;
+        this.updateView();
+    }
+
+    handleSVHighlight(highlight, size) {
+        this.model.svHighlight = highlight;
+        this.model.svSize = size;
+        this.updateView();
+    }
+
+    updateView() {
+        const data = this.model.generateData();
+        const svm = this.trainSVM(data);
+        this.view.plotData(data, svm, this.model);
+        
+        const metricValue = this.model.calculateMetric();
+        this.view.updateMetrics(this.model.metric, metricValue);
+
+        this.view.updateSliderValue('tp');
+        this.view.updateSliderValue('tn');
+        this.view.updateSliderValue('fp');
+        this.view.updateSliderValue('fn');
+    }
+
+    trainSVM(data) {
+        const classMeans = {};
+        data.forEach(d => {
+            if (!classMeans[d.class]) {
+                classMeans[d.class] = {x: 0, y: 0, z: 0, count: 0};
+            }
+            classMeans[d.class].x += d.x;
+            classMeans[d.class].y += d.y;
+            classMeans[d.class].z += d.z;
+            classMeans[d.class].count++;
+        });
+        
+        Object.keys(classMeans).forEach(c => {
+            classMeans[c].x /= classMeans[c].count;
+            classMeans[c].y /= classMeans[c].count;
+            classMeans[c].z /= classMeans[c].count;
+        });
+        
+        const w = [
+            classMeans[1].x - classMeans[-1].x,
+            classMeans[1].y - classMeans[-1].y,
+            classMeans[1].z - classMeans[-1].z
+        ];
+        
+        const midpoint = [
+            (classMeans[1].x + classMeans[-1].x) / 2,
+            (classMeans[1].y + classMeans[-1].y) / 2,
+            (classMeans[1].z + classMeans[-1].z) / 2
+        ];
+        const b = -(w[0] * midpoint[0] + w[1] * midpoint[1] + w[2] * midpoint[2]);
+        
+        return {w, b};
+    }
+
+    startAnimation() {
+        if (this.animationInterval) {
+            clearInterval(this.animationInterval);
+        }
+        let angle = 0;
+        this.animationInterval = setInterval(() => {
+            angle += 0.05;
+            const layout = {
+                scene: {
+                    camera: {
+                        eye: {
+                            x: 1.5 * Math.cos(angle),
+                            y: 1.5 * Math.sin(angle),
+                            z: 1.5
+                        }
+                    }
+                }
+            };
+            Plotly.relayout(this.view.plot, layout);
+        }, 50);
+    }
+
+    stopAnimation() {
+        if (this.animationInterval) {
+            clearInterval(this.animationInterval);
+            this.animationInterval = null;
+        }
+    }
+}
+
+const app = new ConfusionMatrixController(new ConfusionMatrixModel(), new ConfusionMatrixView());
+</script>
+</body></html>
